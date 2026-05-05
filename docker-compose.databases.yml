@@ -30,7 +30,7 @@ services:
       - "I18N_LOCALE=zh-CN"
       - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
       - "ELASTICSEARCH_USERNAME=kibana_system"
-      - "ELASTICSEARCH_PASSWORD=kibana_system_2026"
+      - "ELASTICSEARCH_PASSWORD=your_kibana_password_here"
     ports:
       - "5601:5601"
     networks:
@@ -164,13 +164,13 @@ services:
   # MySQL服务
   mysql:
     image: mysql:8.0
-    container_name: mysql-aiplatform
+    container_name: mysql-kb
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: ai_fault_diagnosis
-      MYSQL_USER: aiplatform
-      MYSQL_PASSWORD: aiplatform
+      MYSQL_USER: kb_user
+      MYSQL_PASSWORD: your_db_password_here
     ports:
       - "3307:3306"
     volumes:
@@ -193,7 +193,7 @@ services:
   # Redis服务
   redis-asr:
     image: redis:8.0.1
-    container_name: redis-aiplatform
+    container_name: redis-kb
     restart: always
     command: redis-server --requirepass ${REDIS_PASSWORD:-changeme}
     ports:

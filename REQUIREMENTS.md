@@ -1,212 +1,212 @@
-# Requirements
+# 需求文档
 
-This document defines what you need to build on top of the existing codebase. Read [README.md](./README.md) first for the codebase overview.
-
----
-
-## Project Overview
-
-**Goal:** Take the existing prototype and turn it into a production-quality, **configurable**, general-purpose knowledge base management tool.
-
-**What "production-quality" means here:**
-
-- It runs reliably end-to-end (upload → ingest → list → delete) without manual intervention
-- Failures are observable and recoverable
-- New file types / new metadata schemas can be added via **configuration**, not code changes
-- A new developer can deploy and run it locally in under 30 minutes by following the docs
-
-**What "production-quality" does NOT mean here:**
-
-- Not enterprise-scale (no multi-tenant, no SSO, no audit logging)
-- Not high-concurrency (single-digit users is fine)
-- Not feature-complete (you don't need to add new features beyond what's specified)
-
-**Timeline:** 2 weeks.
-
-**Working language:** Code, comments, and docs in English or Chinese — your choice, just be consistent.
+本文档定义了你需要在现有代码基础上构建的内容。请先阅读 [README.md](./README.md) 了解代码库概览。
 
 ---
 
-## Hard Requirements (Must Have)
+## 项目概述
 
-### 1. End-to-end stability
+**目标：** 将现有原型改造成生产级、**可配置化**的通用知识库管理工具。
 
-The full upload → ingest → list → delete loop must work reliably for all four file types: **Excel, PDF, Word, PPT**.
+**"生产级"的含义：**
 
-Note: **PPT support does not exist yet — you need to implement it** following the same pattern as Excel/PDF/Word agents.
+- 端到端可靠运行（上传 → 入库 → 列表 → 删除），无需人工干预
+- 故障可观测、可恢复
+- 新文件类型 / 新元数据 schema 可通过**配置**添加，无需改代码
+- 新开发者按文档操作，30 分钟内可在本地部署并运行
 
-Specifically:
-- Upload completes without timeout for files up to 10MB
-- Failed embedding API calls are retried with exponential backoff
-- Network glitches don't kill the entire task
-- Frontend shows accurate task progress (not stuck at "processing...")
+**"生产级"不包含：**
 
-### 2. Multi-database consistency
+- 不需要企业级规模（无多租户、无 SSO、无审计日志）
+- 不需要高并发（个位数用户即可）
+- 不需要功能完整（不必添加规格之外的新功能）
 
-When a file is uploaded, data is written to MySQL + MongoDB + Milvus + Elasticsearch. When deleted, data is removed from all four.
+**时间：** 2 周。
 
-Required behavior:
-- **On write failure:** the system records which databases were written and which weren't. The `KbFile.status` field reflects the partial state.
-- **On delete:** the system attempts to delete from all four databases. Failures are logged and surfaced to the user.
-- **No silent data loss:** orphan data in any database can be detected (a reconciliation script is acceptable).
+**工作语言：** 代码、注释、文档使用中文或英文均可，保持一致即可。
 
-You don't need full distributed transactions. A pragmatic "soft consistency + status field + reconciliation script" approach is fine.
+---
 
-### 3. Configurability (the core engineering challenge)
+## 硬性需求（必须完成）
 
-This is what we want to evaluate. The current code has **hardcoded business logic** in many places. Your job is to extract these into **configuration files** so changing them does not require code changes.
+### 1. 端到端稳定性
 
-The following must be configurable via files (YAML / JSON / `.env`, your choice):
+完整的上传 → 入库 → 列表 → 删除流程，必须对四种文件类型稳定运行：**Excel、PDF、Word、PPT**。
 
-#### 3.1 Chunking strategy
-- `chunk_size`, `overlap`, `splitter_type` (recursive / semantic / fixed)
-- Different file types may use different strategies
-- Currently hardcoded in chunker — extract it
+注意：**PPT 支持目前不存在，需要你来实现**，参照 Excel/PDF/Word agent 的模式。
 
-#### 3.2 Prompt templates
-- LLM prompts (e.g., metadata extraction, content cleanup) currently hardcoded in `.py` files
-- Extract to external template files
-- Support template variables (Jinja2 / f-string style)
+具体要求：
+- 10MB 以内文件上传不超时
+- embedding API 调用失败后，以指数退避进行重试
+- 网络抖动不会导致整个任务中止
+- 前端准确展示任务进度（不卡在"处理中…"）
 
-#### 3.3 Metadata field schema
-- The fields a user fills when uploading (currently hardcoded as `DEFAULT_UPLOAD_METADATA_FIELDS` in `admin/src/pages/knowledge/index.jsx`) must come from a config file or backend API
-- Adding a new field (e.g., "department", "language") should require **zero frontend code change**
-- Each field's type, label, options, required-or-not are all configurable
+### 2. 多数据库一致性
 
-#### 3.4 Elasticsearch keyword extraction
-- Currently the keyword extraction logic for ES indexing is hardcoded
-- Extract: which fields go to ES, what analyzer to use, what fields to index for search
+文件上传时，数据写入 MySQL + MongoDB + Milvus + Elasticsearch。删除时，从四库同步删除。
 
-#### 3.5 LLM model selection
-- The system should support switching between LLM providers (Qwen / OpenAI / DeepSeek / etc.) without code changes
-- Currently only Qwen is wired up
-- Implement a thin abstraction layer; provider selected via config
+要求行为：
+- **写入失败时：** 系统记录哪些数据库已写入、哪些未写入。`KbFile.status` 字段反映部分成功状态。
+- **删除时：** 系统尝试从四库删除。失败需记录日志并向用户展示。
+- **不允许静默数据丢失：** 任意数据库中的孤立数据可被检测到（提供对账脚本即可）。
 
-### 4. Frontend ↔ Backend Interaction
+无需完整分布式事务。"软一致性 + status 字段 + 对账脚本"的务实方案即可。
 
-The frontend must:
-- Show real-time upload progress (not just "loading...")
-- Show task status accurately after page refresh (no lost state)
-- Show a clear error message when something goes wrong
-- Update the file list immediately after delete (no stale cache)
+### 3. 可配置化（核心工程挑战）
 
-### 5. Deployment
+这是我们重点考察的能力。当前代码在多处存在**硬编码的业务逻辑**，你的任务是将这些内容提取到**配置文件**中，使修改它们不再需要改代码。
 
-The final deliverable must be runnable via:
+以下内容必须通过文件（YAML / JSON / `.env`，格式自选）进行配置：
+
+#### 3.1 分块策略
+- `chunk_size`、`overlap`、`splitter_type`（recursive / semantic / fixed）
+- 不同文件类型可使用不同策略
+- 当前硬编码于 chunker 中，需要提取
+
+#### 3.2 Prompt 模板
+- LLM prompt（如元数据提取、内容清洗）当前硬编码于 `.py` 文件中
+- 提取到外部模板文件
+- 支持模板变量（Jinja2 / f-string 风格）
+
+#### 3.3 元数据字段 schema
+- 用户上传时填写的字段（当前硬编码为 `admin/src/pages/knowledge/index.jsx` 中的 `DEFAULT_UPLOAD_METADATA_FIELDS`）必须来自配置文件或后端 API
+- 新增字段（如"department"、"language"）**无需改动前端代码**
+- 每个字段的类型、标签、选项、是否必填，均可配置
+
+#### 3.4 Elasticsearch 关键词提取
+- 当前 ES 索引的关键词提取逻辑是硬编码的
+- 提取：哪些字段写入 ES、使用何种 analyzer、哪些字段参与搜索
+
+#### 3.5 LLM 模型选择
+- 系统应支持在不改代码的情况下切换 LLM 提供商（Qwen / OpenAI / DeepSeek / 等）
+- 当前只接入了 Qwen
+- 实现一个轻量抽象层，通过配置选择提供商
+
+### 4. 前后端交互
+
+前端必须：
+- 展示实时上传进度（不只是"加载中…"）
+- 页面刷新后任务状态准确（不丢失状态）
+- 出错时展示清晰的错误信息
+- 删除后立即更新文件列表（无过时缓存）
+
+### 5. 部署
+
+最终交付物必须可通过以下方式运行：
 
 ```bash
 cp .env.example .env
-# (user fills in API key)
+# （用户填入 API key）
 docker compose -f docker-compose.databases.yml up -d
 docker compose -f docker-compose.app.yml up -d
 ```
 
-After this, opening `http://localhost:10091` should show a working admin UI where the user can upload a file and see it processed.
+执行后，打开 `http://localhost:10091` 应显示可用的 Admin UI，用户可上传文件并看到处理结果。
 
-If you change ports, paths, or anything in the deployment flow, **update the docs accordingly**.
-
----
-
-## Soft Requirements (Nice to Have)
-
-These add bonus points but are not required:
-
-- Logging: structured logging with log levels (INFO / WARNING / ERROR)
-- Reconciliation script: a CLI tool that scans the four databases and reports inconsistencies
-- Test data generator: a script that generates synthetic test files for stress-testing
-- Health check endpoint: `GET /health` returns DB connection status
+如果你修改了端口、路径或部署流程中的任何内容，**请同步更新文档**。
 
 ---
 
-## Explicitly NOT Required
+## 软性需求（加分项）
 
-Don't waste time on these — we will not evaluate them:
+完成可加分，但非必须：
 
-- ❌ User authentication / authorization (current `auth_middleware.py` is fine as-is)
-- ❌ Rate limiting / DDoS protection
-- ❌ HTTPS / TLS configuration
-- ❌ CI/CD pipelines
-- ❌ Unit test coverage above 30% (basic smoke tests are enough)
-- ❌ Performance optimization beyond "doesn't time out"
-- ❌ Replacing core architecture (FastAPI / SQLAlchemy / current DB choices)
-- ❌ Building a chat / Q&A agent (out of scope)
+- 日志：结构化日志，含日志级别（INFO / WARNING / ERROR）
+- 对账脚本：CLI 工具，扫描四库并报告不一致
+- 测试数据生成器：生成合成测试文件用于压测的脚本
+- 健康检查接口：`GET /health` 返回各数据库连接状态
 
 ---
 
-## Deliverables
+## 明确不需要做的内容
 
-When you finish, push to your fork / branch and provide:
+以下内容不在评估范围内，不要在这上面花时间：
 
-1. **Source code** — all changes committed
-2. **DEPLOYMENT.md** — how to deploy from scratch (your updated version, replacing/supplementing this README's Quick Start)
-3. **CHANGES.md** — what you changed and why, organized by topic
-4. **CONFIG.md** — documentation of all configuration options you added (with examples)
-5. **A working demo** — either a screen recording (5-10 min) or a live walkthrough call
-
----
-
-## Acceptance Criteria
-
-We will evaluate against these:
-
-### Functional (40%)
-- [ ] Excel upload → ingest → list → delete works end-to-end
-- [ ] PDF upload → ingest → list → delete works end-to-end
-- [ ] Word upload → ingest → list → delete works end-to-end
-- [ ] PPT upload → ingest → list → delete works end-to-end
-- [ ] Failed uploads are recoverable (retry / clear / re-upload)
-- [ ] Multi-database deletion is consistent
-
-### Configurability (40%)
-- [ ] Chunking parameters configurable without code changes
-- [ ] Prompt templates externalized
-- [ ] Metadata schema configurable without code changes
-- [ ] LLM model switchable via config
-- [ ] ES keyword extraction configurable
-
-### Engineering Quality (20%)
-- [ ] Code is readable, with reasonable comments where logic is non-obvious
-- [ ] Errors are logged with context (not silent `try/except: pass`)
-- [ ] Configuration is documented
-- [ ] Deployment docs are accurate (we will follow them step by step)
+- ❌ 用户认证 / 鉴权（现有 `auth_middleware.py` 保持原样即可）
+- ❌ 限流 / DDoS 防护
+- ❌ HTTPS / TLS 配置
+- ❌ CI/CD 流水线
+- ❌ 单元测试覆盖率超过 30%（基础冒烟测试即可）
+- ❌ 超出"不超时"以外的性能优化
+- ❌ 替换核心架构（FastAPI / SQLAlchemy / 当前数据库选型）
+- ❌ 构建 Chat / 问答 Agent（超出范围）
 
 ---
 
-## How to Get Started
+## 交付物
 
-1. Read [README.md](./README.md) and run the Quick Start to get the existing system running locally
-2. Test an Excel upload — observe what works and what doesn't
-3. Read `ingestion/core/base_agent.py` — understand the pipeline
-4. Read `serving/api/router/admin/admin_knowledge.py` — understand the API
-5. Make a 2-week plan and share it with us before starting heavy work
-6. Open issues / questions in this repo as you go
+完成后，推送到你的 fork / 分支，并提供：
 
----
-
-## Communication
-
-- **Daily:** brief status update (text, ~3 sentences) — what you did yesterday, what you're doing today, blockers
-- **Weekly:** longer update + demo (5-10 min recorded video or live call)
-- **Issues:** open in this repo's Issues tab — that's our primary discussion channel
-- **Don't:** WeChat for technical details. Keep technical discussions in writing for traceability.
+1. **源代码** — 所有改动已 commit
+2. **DEPLOYMENT.md** — 从零开始的部署说明（你更新后的版本，替换或补充本 README 的快速开始部分）
+3. **CHANGES.md** — 改动了什么、为什么改，按主题整理
+4. **CONFIG.md** — 你新增的所有配置项说明（含示例）
+5. **可运行的 demo** — 屏幕录制（5–10 分钟）或现场演示
 
 ---
 
-## Payment Milestones
+## 验收标准
 
-| Milestone | Trigger | Payment |
+我们将按以下标准评估：
+
+### 功能性（40%）
+- [ ] Excel 上传 → 入库 → 列表 → 删除端到端可用
+- [ ] PDF 上传 → 入库 → 列表 → 删除端到端可用
+- [ ] Word 上传 → 入库 → 列表 → 删除端到端可用
+- [ ] PPT 上传 → 入库 → 列表 → 删除端到端可用
+- [ ] 上传失败可恢复（重试 / 清除 / 重新上传）
+- [ ] 多数据库删除一致
+
+### 可配置化（40%）
+- [ ] 分块参数无需改代码即可配置
+- [ ] Prompt 模板已外部化
+- [ ] 元数据 schema 无需改代码即可配置
+- [ ] LLM 模型可通过配置切换
+- [ ] ES 关键词提取可配置
+
+### 工程质量（20%）
+- [ ] 代码可读，非显而易见的逻辑有合理注释
+- [ ] 错误有上下文日志（不是 `try/except: pass` 式的静默吞异常）
+- [ ] 配置有文档说明
+- [ ] 部署文档准确（我们会按步骤执行）
+
+---
+
+## 如何开始
+
+1. 阅读 [README.md](./README.md)，按快速开始在本地运行现有系统
+2. 测试一次 Excel 上传 — 观察哪些正常、哪些不正常
+3. 阅读 `ingestion/core/base_agent.py` — 理解流水线
+4. 阅读 `serving/api/router/admin/admin_knowledge.py` — 理解 API
+5. 制定 2 周计划，正式开工前与我们同步
+6. 边做边在本仓库开 issue 记录问题
+
+---
+
+## 沟通方式
+
+- **每日：** 简短进度更新（文字，约 3 句话）— 昨天做了什么、今天做什么、有无阻塞
+- **每周：** 详细进度更新 + demo（5–10 分钟录屏或现场演示）
+- **Issue：** 在本仓库的 Issues 页面提问 — 这是我们的主要沟通渠道
+- **不要：** 用微信讨论技术细节。技术讨论留文字记录，便于追溯。
+
+---
+
+## 付款里程碑
+
+| 里程碑 | 触发条件 | 付款比例 |
 |---|---|---|
-| M1 | End of Day 2: read codebase, run it locally, submit a written project plan | 30% |
-| M2 | End of Day 7: hard requirements 1, 2, 4, 5 done; configurability partially done | 40% |
-| M3 | End of Day 14: all hard requirements done; deliverables submitted; acceptance passed | 30% |
+| M1 | 第 2 天结束：读完代码库，本地运行成功，提交书面项目计划 | 30% |
+| M2 | 第 7 天结束：硬性需求 1、2、4、5 完成；可配置化部分完成 | 40% |
+| M3 | 第 14 天结束：所有硬性需求完成；交付物已提交；验收通过 | 30% |
 
 ---
 
-## Final Notes
+## 最后说明
 
-- We have **deliberately stripped business-specific code** from this package. You're working on a generic KB tool. Don't try to reverse-engineer the original business — it's not relevant to your work.
-- We've also **deliberately kept some rough edges** in the code (this is the prototype state). Your job is to clean these up. We'll evaluate how cleanly you do it.
-- If something looks broken or wrong, **ask first** before making big architectural changes. Open an issue.
-- We value **engineering judgment** over speed. A clean, well-documented solution to 80% of requirements beats a hacky solution to 100%.
+- 我们**有意从这个代码包中删除了业务相关代码**。你面对的是一个通用知识库工具，不要试图反推原始业务 — 那与你的工作无关。
+- 我们也**有意保留了一些粗糙之处**（这是原型状态）。你的任务是将它整理干净。我们会评估你整理的质量。
+- 如果某处看起来有问题，**先开 issue 问清楚**，再做大的架构改动。
+- 我们重视**工程判断力**，胜过速度。对 80% 需求的干净、有文档的实现，胜过对 100% 需求的凑合实现。
 
-Good luck.
+祝好运。

@@ -3,7 +3,7 @@ version: "3.8"  # 指定 Docker Compose 文件格式版本
 services:
   redis-asr:
     image: redis:8.0.1
-    container_name: redis-aiplatform
+    container_name: redis-kb
     restart: always
     command: redis-server --requirepass ${REDIS_PASSWORD:-changeme}
     ports:

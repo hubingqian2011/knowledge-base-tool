@@ -3,13 +3,13 @@ version: "3.8"  # 指定 Docker Compose 文件格式版本
 services:
   mysql:
     image: mysql:8.0  # 使用 MySQL 8.0 官方镜像
-    container_name: mysql-aiplatform
+    container_name: mysql-kb
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root                     # 设置root用户密码
       MYSQL_DATABASE: ai_fault_diagnosis             # 初始化时自动创建一个名为 ai_fault_diagnosis 的数据库
-      MYSQL_USER: aiplatform                               # 初始化用户
-      MYSQL_PASSWORD: aiplatform                           # 初始化用户密码
+      MYSQL_USER: kb_user                               # 初始化用户
+      MYSQL_PASSWORD: your_db_password_here                           # 初始化用户密码
     ports:
       - "3307:3306"  # 将容器的3306端口映射到宿主机的3307端口
     volumes:
