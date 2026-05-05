@@ -1,0 +1,20 @@
+services:
+  neo4j:
+    image: neo4j:5.26.8
+    volumes:
+        - ./neo4j/logs:/logs
+        - ./neo4j/config:/config
+        - ./neo4j/data:/data
+        - ./neo4j/plugins:/plugins
+    environment:
+        - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-changeme}
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    restart: always
+    networks:
+      - ai-platform-network
+
+networks:
+  ai-platform-network:
+    external: true

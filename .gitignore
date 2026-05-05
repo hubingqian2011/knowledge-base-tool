@@ -1,0 +1,128 @@
+# ── 环境变量（绝对不能入库）─────────────────────────
+.env
+.env.local
+.env.online
+.env.prod
+.env.remote
+.env.docker
+*.env
+!.env.example
+!serving/.env.example
+!ingestion/.env.example
+!evaluation/.env.example
+
+# ── Python ────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+
+# ── 数据库数据卷 ──────────────────────────────────────
+infrastructure/volumes/
+infrastructure/milvus/volumes/
+infrastructure/elasticsearch/data/
+infrastructure/mongodb/data/
+infrastructure/mysql/data/
+infrastructure/redis/data/
+infrastructure/graph/data/
+
+# ── 入库产物 ──────────────────────────────────────────
+ingestion/output/
+ingestion/Input/*.pdf
+
+# ── 评测结果 ──────────────────────────────────────────
+evaluation/results/
+
+# ── 日志 ──────────────────────────────────────────────
+logs/
+*.log
+serving/logs/
+serving/temp_files/
+test_results/
+
+# ── IDE ───────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+
+# ── OS ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*.temp
+~$*
+
+# ── 大文件 / 临时文件 ────────────────────────────────
+*.pdf
+*.docx
+*.xlsx
+curl/
+commit_msg.txt
+colleague_fault_diagnose.txt
+chat_query_guide.sh
+知识上传目前还存在的问题.txt
+
+# ── Node ──────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.next/
+
+# ── 其他 ──────────────────────────────────────────────
+msg/
+ttf/
+temp_files/
+*.db
+*.sqlite3
+ai_platform.pid
+templates/
+usage_stats.json
+task_results/
+docker-compose.override.yml
+
+# ── 上传的待入库文件 ───────────────────────────────
+upload/*
+!upload/.gitkeep
+
+# ── 旧目录数据卷（docker_container/）───────────────
+docker_container/mongodb/
+docker_container/mysql/mysql_data/
+docker_container/redis/data/
+docker_container/graph/neo4j/
+
+# ── 旧目录残留 ─────────────────────────────────────
+后台部署/
+
+# ── Socket 文件 ────────────────────────────────────
+*.sock
+
+# ── Claude Code / 临时工具 ────────────────────────
+.claude/
+video-knowledge-tool/
+analysis_eva_prompt.md
+tests/_gen_principles_docx.py
+tests/_ragas_analysis.py
+tests/ab_test_fc_vs_json.py
+tests/ab_test_results.json

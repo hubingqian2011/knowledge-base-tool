@@ -1,0 +1,221 @@
+services:
+  # Elasticsearch服务
+  elasticsearch:
+    container_name: es01
+    image: elasticsearch:8.18.2
+    restart: unless-stopped
+    environment:
+      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+      - "TZ=Asia/Shanghai"
+      - "discovery.type=single-node"
+      - "ELASTIC_PASSWORD=elastic"
+      - "xpack.security.enabled=true"            # ← 安全功能保留
+      - "xpack.security.http.ssl.enabled=false"  # ← 关闭 HTTPS
+      - "xpack.security.transport.ssl.enabled=false"  # ← 关闭节点间 SSL
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - ./infrastructure/elasticsearch/data:/usr/share/elasticsearch/data
+      - ./infrastructure/elasticsearch/plugins:/usr/share/elasticsearch/plugins
+    networks:
+      - manubot-network
+
+  kibana:
+    container_name: kibana01
+    image: kibana:8.18.2
+    restart: unless-stopped
+    environment:
+      - "TZ=Asia/Shanghai"
+      - "I18N_LOCALE=zh-CN"
+      - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
+      - "ELASTICSEARCH_USERNAME=kibana_system"
+      - "ELASTICSEARCH_PASSWORD=kibana_system_2026"
+    ports:
+      - "5601:5601"
+    networks:
+      - manubot-network
+    depends_on:
+      - elasticsearch
+
+  # Neo4j图数据库服务
+  neo4j:
+    image: neo4j:5.26.8
+    volumes:
+      - ./infrastructure/graph/neo4j/logs:/logs
+      - ./infrastructure/graph/neo4j/config:/config
+      - ./infrastructure/graph/neo4j/data:/data
+      - ./infrastructure/graph/neo4j/plugins:/plugins
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-changeme}
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    restart: always
+    networks:
+      - manubot-network
+
+  # Milvus向量数据库服务
+  etcd:
+    container_name: milvus-etcd
+    image: quay.io/coreos/etcd:v3.5.18
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - ./infrastructure/milvus/volumes/etcd:/etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - manubot-network
+
+  minio:
+    container_name: milvus-minio
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    ports:
+      - "9001:9001"
+      - "9000:9000"
+    volumes:
+      - ./infrastructure/milvus/volumes/minio:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - manubot-network
+
+  standalone:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.5.12
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - ./infrastructure/milvus/volumes/milvus:/var/lib/milvus
+      - ./infrastructure/milvus/milvus.yaml:/milvus/configs/milvus.yaml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    depends_on:
+      - "etcd"
+      - "minio"
+    networks:
+      - manubot-network
+
+  attu:
+    container_name: attu
+    image: zilliz/attu:v2.2.8
+    environment:
+      MILVUS_URL: milvus-standalone:19530
+    ports:
+      - "9002:3000"
+    depends_on:
+      - "standalone"
+    networks:
+      - manubot-network
+
+  # MongoDB服务
+  mongo:
+    image: mongo:8.0.9
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./infrastructure/mongodb/data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongo
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-changeme}
+    networks:
+      - manubot-network
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: mongo
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD:-changeme}
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:${MONGO_PASSWORD:-changeme}@mongo:27017/
+      ME_CONFIG_BASICAUTH: false
+    networks:
+      - manubot-network
+
+  # MySQL服务
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-aiplatform
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ai_fault_diagnosis
+      MYSQL_USER: aiplatform
+      MYSQL_PASSWORD: aiplatform
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./infrastructure/mysql/mysql_data:/var/lib/mysql
+    networks:
+      - manubot-network
+      
+  # MySQL 可视化工具
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    restart: always
+    ports:
+      - "8082:8080"
+    networks:
+      - manubot-network
+    depends_on:
+      - mysql
+
+  # Redis服务
+  redis-asr:
+    image: redis:8.0.1
+    container_name: redis-aiplatform
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD:-changeme}
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./infrastructure/redis/data:/data
+    networks:
+      - manubot-network
+    
+  # Redis 可视化工具
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redisinsight
+    restart: always
+    ports:
+      - "5540:5540"
+    volumes:
+      - ./infrastructure/redisinsight/data:/data
+    networks:
+      - manubot-network
+    depends_on:
+      - redis-asr
+networks:
+  manubot-network:
+    external: true

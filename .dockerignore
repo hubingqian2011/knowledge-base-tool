@@ -1,0 +1,20 @@
+.git
+.gitignore
+
+# Local dependency and build outputs
+node_modules
+admin/node_modules
+admin/dist
+frontend/node_modules
+frontend/build
+
+# Runtime database volumes must not enter root build contexts.
+infrastructure/**/data
+infrastructure/**/volumes
+infrastructure/mysql/mysql_data
+infrastructure/graph/neo4j/logs
+
+# Runtime logs and transient files
+serving/logs
+serving/temp_files
+upload

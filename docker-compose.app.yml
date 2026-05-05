@@ -1,0 +1,61 @@
+services:
+  # manubot后端服务
+  manubot-backend:
+    build:
+      context: .
+      dockerfile: serving/Dockerfile
+    image: manubot-backend:latest
+    container_name: manubot-backend
+    ports:
+      - "10090:10090"
+    restart: always
+    # 环境变量在构建时通过Dockerfile处理（.env.docker -> .env）
+    # 数据库服务在 docker-compose.databases.yml 中定义
+    # 使用启动脚本确保数据库先启动
+    networks:
+      - manubot-network
+    volumes:
+      - ./serving/logs:/manubot_backend/logs
+      - ./serving/temp_files:/manubot_backend/temp_files
+      - ./ingestion:/app/ingestion
+      - ./upload:/app/upload
+      - ./ingestion/output/slices:/app/ingestion/output/slices
+
+  # PDF 说明书入库 Agent（按需运行，不自动重启）
+  manual-ingest:
+    build:
+      context: .
+      dockerfile: ingestion/Dockerfile
+    image: manual-ingest:latest
+    container_name: manual-ingest
+    restart: "no"
+    env_file:
+      - ./ingestion/.env
+    volumes:
+      # 宿主机 input 目录挂载为容器 /app/input（放待入库 PDF）
+      - ./ingestion/input:/app/input
+      # 宿主机 output 目录挂载为容器 /app/output（章节子PDF + 日志）
+      - ./ingestion/output:/app/output
+    networks:
+      - manubot-network
+    # 不配置 depends_on：数据库在独立的 compose 文件中，跨文件 depends_on 无效
+    # 使用前请确保 docker-compose.databases.yml 中的数据库服务已启动
+
+  # manubot管理后台
+  manubot-admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    image: manubot-admin:latest
+    container_name: manubot-admin
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    depends_on:
+      - manubot-backend
+    networks:
+      - manubot-network
+
+networks:
+  manubot-network:
+    external: true

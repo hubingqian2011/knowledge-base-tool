@@ -1,0 +1,37 @@
+# ============================================================
+# Agent1 - PDF 入库 Agent 依赖
+# ============================================================
+
+# PDF 解析
+pymupdf>=1.23.0
+pypdf>=5.0.0
+
+# 图片处理
+Pillow>=10.0.0
+
+# LLM / Embedding API（兼容 DashScope OpenAI 模式）
+openai>=1.0.0
+
+# 进度条
+tqdm>=4.66.0
+
+# 环境变量
+python-dotenv>=1.0.0
+
+# Excel 解析
+pandas>=2.0.0
+openpyxl>=3.1.0
+
+# Word 解析
+python-docx>=1.1.0
+
+# ---- 数据库写入 -----------------------------------------------
+
+# Milvus 向量数据库
+pymilvus>=2.3.0
+
+# MongoDB
+pymongo>=4.0.0
+
+# Elasticsearch
+elasticsearch>=8.0.0,<9.0.0

@@ -1,0 +1,84 @@
+# 基础依赖
+numpy>=1.24.0,<2.3
+pandas>=1.3.0
+scikit-learn>=1.0.0
+
+# Web 服务相关
+fastapi>=0.68.0
+uvicorn>=0.15.0
+python-multipart>=0.0.5  # FastAPI文件上传支持
+
+# 认证和安全
+PyJWT
+passlib
+bcrypt==4.0.1
+
+# 工具库
+tqdm>=4.62.0
+requests>=2.26.0
+ulid-py>=1.1.0
+
+# 文件读取库
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+pywin32>=306; platform_system == "Windows"  # Windows系统下读取.doc文件需要
+# antiword>=0.37; platform_system == "Linux"  # Linux系统下读取.doc文件需要 (已通过系统包安装)
+python-pptx>=0.6.21
+openpyxl
+pymupdf
+
+# Mysql
+pymysql
+SQLAlchemy
+cryptography>=41.0.0
+
+# 火山引擎
+volcengine-python-sdk[ark]
+
+# 搜索引擎
+elasticsearch==8.18.1
+
+# 向量数据库
+pymilvus==2.5.10
+
+# 文档数据库
+# pymongo>=4.6.0
+mongoengine
+
+# 缓存数据库
+redis>=5.0.1
+
+# 知识图谱
+neo4j>=5.14.1
+
+# 新增依赖
+# rerankers>=0.6.0
+
+# 环境变量管理
+python-dotenv>=1.0.0
+
+# 数据验证和序列化
+pydantic>=2.0.0
+pydantic[email]
+
+# 异步HTTP客户端
+aiohttp>=3.8.0
+
+# pdf图片提取
+pdf2image  # 运行sudo yum install poppler-utils以安装依赖
+Pillow
+
+openai
+pydub
+tencentcloud-sdk-python
+cos-python-sdk-v5
+
+# 测试相关依赖
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+httpx>=0.24.0  # 用于FastAPI测试客户端
+
+# 日志
+loguru
+aliyun-log-python-sdk

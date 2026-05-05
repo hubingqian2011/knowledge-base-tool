@@ -1,0 +1,41 @@
+services:
+  elasticsearch:
+    container_name: es01
+    image: elasticsearch:8.18.2
+    restart: unless-stopped
+    environment:
+      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+      - "TZ=Asia/Shanghai"
+      - "discovery.type=single-node"
+      - "ELASTIC_PASSWORD=elastic"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      # - ./config:/usr/share/elasticsearch/config
+      - ./data:/usr/share/elasticsearch/data
+      - ./plugins:/usr/share/elasticsearch/plugins
+    networks:
+      - ai-platform-network
+  kibana:
+    container_name: kibana01
+    image: kibana:8.18.2
+    restart: unless-stopped
+    environment:
+      - "TZ=Asia/Shanghai"
+      - "I18N_LOCALE=zh-CN"
+      - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
+      - "ELASTICSEARCH_USERNAME=elastic_user"
+      - "ELASTICSEARCH_PASSWORD=elastic_user"
+    ports:
+      - "5601:5601"
+        #volumes:
+        #- ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml
+    networks:
+      - ai-platform-network
+    depends_on:
+      - elasticsearch
+# 网络配置
+networks:
+  ai-platform-network:
+    external: true
